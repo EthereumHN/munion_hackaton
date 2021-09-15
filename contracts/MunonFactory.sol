@@ -113,6 +113,52 @@ contract MunonFactory {
         _;
     }
 
+    modifier hasJoined(uint256 hackathon_id) {
+        require(
+            !participant_has_joined[hackathon_id][msg.sender],
+            "Participant has not joined"
+        );
+        _;
+    }
+
+    modifier pointsAreValid(uint256[][] memory points, uint256 hackathon_id) {
+        require(
+            points.length == getParticipantCount(hackathon_id),
+            "Amount of reviews submitted doesnt't match hackathon participant count."
+        );
+        for (
+            uint256 participant_iterator = 0;
+            participant_iterator < points.length;
+            participant_iterator++
+        ) {
+            require(
+                points[participant_iterator].length ==
+                    hackathons[hackathon_id].metrics.length,
+                "Amount of metrics submitted doesnt't match hackathon metric count."
+            );
+            for (
+                uint256 metric_iterator = 0;
+                metric_iterator < points[participant_iterator].length;
+                metric_iterator++
+            ) {
+                uint256 grading = points[participant_iterator][metric_iterator];
+                require(
+                    grading >= 0 && grading <= 5,
+                    "A submited review has points greater than 5"
+                );
+            }
+        }
+        _;
+    }
+
+    modifier isReviewEnabled(uint256 hackathon_id) {
+        require(
+            hackathons[hackathon_id].state == HackathonState.ReviewEnabled,
+            "Hackathon review is not enabled"
+        );
+        _;
+    }
+
     // Public methods
     function createHackathon(
         string memory _name,
@@ -172,5 +218,38 @@ contract MunonFactory {
     {
         hackathons[hackathon_id].state = HackathonState.Finished;
         emit HackathonFinished(hackathon_id);
+    }
+
+    function rateAll(uint256 hackathon_id, uint256[][] memory points)
+        public
+        hasJoined(hackathon_id)
+        pointsAreValid(points, hackathon_id)
+        isReviewEnabled(hackathon_id)
+    {
+        for (
+            uint256 current_participant = 0;
+            current_participant < participant_addresses[hackathon_id].length;
+            current_participant++
+        ) {
+            address reviewed_address = participant_addresses[hackathon_id][
+                current_participant
+            ];
+            for (
+                uint256 current_metric = 0;
+                current_metric < points[current_participant].length;
+                current_metric++
+            ) {
+                uint256 rating_stored = participant_ratings[hackathon_id][
+                    msg.sender
+                ][reviewed_address][current_metric];
+                participant_points[hackathon_id][reviewed_address] =
+                    participant_points[hackathon_id][reviewed_address] +
+                    points[current_participant][current_metric] -
+                    rating_stored;
+                participant_ratings[hackathon_id][msg.sender][reviewed_address][
+                    current_metric
+                ] = points[current_participant][current_metric];
+            }
+        }
     }
 }
