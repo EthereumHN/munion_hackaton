@@ -2,6 +2,8 @@ pragma solidity ^0.8.0;
 
 contract MunonFactory {
     // events
+
+    // Emited when a new Hackathon is created
     event HackathonCreation(
         address hackathon_host,
         uint256 hackathon_id,
@@ -11,6 +13,9 @@ contract MunonFactory {
         uint256 creation_time,
         string[] metrics
     );
+
+    // Emited when a new participant joins the Hackathon
+    event Registration(uint256 hackathon_id, address participant_addr);
 
     event ParticipantRegistered(uint256 hackathon_id, address participant_addr);
 
@@ -68,6 +73,46 @@ contract MunonFactory {
         _;
     }
 
+    modifier paysEntryFee(uint256 hackathon_id) {
+        require(
+            msg.value == hackathons[hackathon_id].entry_fee,
+            "Amount not equal to pay fee"
+        );
+        _;
+    }
+
+    modifier hasNotJoined(uint256 hackathon_id) {
+        require(
+            participant_has_joined[hackathon_id][msg.sender],
+            "Participant has already joined"
+        );
+        _;
+    }
+
+    modifier isRegistrationOpen(uint256 hackathon_id) {
+        require(
+            hackathons[hackathon_id].state == HackathonState.RegistrationOpen,
+            "Hackathon registration is not open"
+        );
+        _;
+    }
+
+    modifier isNotFinished(uint256 hackathon_id) {
+        require(
+            hackathons[hackathon_id].state != HackathonState.Finished,
+            "Hackathon is finished"
+        );
+        _;
+    }
+
+    modifier isHackathonHost(uint256 hackathon_id) {
+        require(
+            hackathons[hackathon_id].host_addr == msg.sender,
+            "You are not the hackathon host"
+        );
+        _;
+    }
+
     // Public methods
     function createHackathon(
         string memory _name,
@@ -97,5 +142,35 @@ contract MunonFactory {
             date_now,
             metrics
         );
+    }
+
+    function join(uint256 hackathon_id)
+        public
+        payable
+        paysEntryFee(hackathon_id)
+        hasNotJoined(hackathon_id)
+        isRegistrationOpen(hackathon_id)
+    {
+        participant_has_joined[hackathon_id][msg.sender] = true;
+        participant_addresses[hackathon_id].push(msg.sender);
+        hackathons[hackathon_id].pot += hackathons[hackathon_id].entry_fee;
+        emit Registration(hackathon_id, msg.sender);
+    }
+
+    function sponsor(uint256 hackathon_id)
+        public
+        payable
+        isNotFinished(hackathon_id)
+    {
+        hackathons[hackathon_id].pot += msg.value;
+        emit SponsorshipSubmited(hackathon_id, msg.value);
+    }
+
+    function finishHackathon(uint256 hackathon_id)
+        public
+        isHackathonHost(hackathon_id)
+    {
+        hackathons[hackathon_id].state = HackathonState.Finished;
+        emit HackathonFinished(hackathon_id);
     }
 }

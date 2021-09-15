@@ -40,4 +40,78 @@ describe("Munon Factory tests", function () {
                 .to.emit(hackatonFactory, "HackathonCreation");
         });
     });
+
+    describe("join", function () {
+        let HackatonFactory;
+        let hackatonFactory;
+        let owner;
+
+        beforeEach(async function () {
+            [owner] = await ethers.getSigners();
+            HackatonFactory = await ethers.getContractFactory("MunonFactory");
+            hackatonFactory = await HackatonFactory.deploy();
+        });
+
+        it("should require the payment of the registration fee", async function () {
+            [_, hackathonOwner, participant] = await ethers.getSigners();
+            await hackatonFactory.connect(hackathonOwner).createHackathon("name", "some-hash", BigNumber.from(1), ["ui"]);
+
+            // Amount is less than the fee
+            await expect(hackatonFactory.connect(participant).join(BigNumber.from(1), {
+                value: BigNumber.from(0)
+            })).to.be.revertedWith("Amount not equal to pay fee");
+
+            // Amount is more than the fee
+            await expect(hackatonFactory.connect(participant).join(BigNumber.from(1), {
+                value: BigNumber.from(3)
+            })).to.be.revertedWith("Amount not equal to pay fee");
+
+            // Amount is exactly equal to the fee
+            const tx = await hackatonFactory.connect(participant).join(BigNumber.from(1), {
+                value: BigNumber.from(1)
+            });
+            await tx.wait();
+            await expect(await hackatonFactory.participant_has_joined(BigNumber.from(1),
+                participant.address)).to.true;
+        });
+    });
+
+    describe("sponsor", function () {
+        let HackatonFactory;
+        let hackatonFactory;
+        let owner;
+
+        beforeEach(async function () {
+            [owner] = await ethers.getSigners();
+            HackatonFactory = await ethers.getContractFactory("MunonFactory");
+            hackatonFactory = await HackatonFactory.deploy();
+        });
+
+        it("should not allow to sponsor a finished hackathon", async function () {
+            [_, hackathonOwner, sponsor] = await ethers.getSigners();
+            const hackathonId = BigNumber.from(1);
+            await hackatonFactory.connect(hackathonOwner).createHackathon("name", "some-hash", BigNumber.from(1), ["ui"]);
+
+            await hackatonFactory.connect(hackathonOwner).finishHackathon(hackathonId);
+
+            await expect(hackatonFactory.connect(sponsor).sponsor(hackathonId, {
+                value: BigNumber.from(1),
+            })).to.be.revertedWith("Hackathon is finished");
+        });
+
+        it("should increase the available pot", async function () {
+            [_, hackathonOwner, sponsor] = await ethers.getSigners();
+            const hackathonId = BigNumber.from(0);
+
+            await hackatonFactory.connect(hackathonOwner).createHackathon("name", "some-hash", BigNumber.from(1), ["ui"]);
+            await expect(() => hackatonFactory.connect(sponsor).sponsor(hackathonId, {
+                value: BigNumber.from(1),
+            })).to.changeEtherBalance(
+                hackatonFactory, BigNumber.from(1),
+            );
+
+            const [, , , , , totalPot] = await hackatonFactory.hackathons(hackathonId);
+            expect(totalPot).to.equal(BigNumber.from(1));
+        });
+    });
 });
