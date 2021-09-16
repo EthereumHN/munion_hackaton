@@ -282,8 +282,8 @@ contract MunonFactory {
         uint256 pot = hackathons[hackathon_id].pot;
         uint256 my_reward = (pot * my_points) / total_points;
 
-        payable(msg.sender).transfer(my_reward);
         participant_has_cashed_out[hackathon_id][msg.sender] = true;
+        payable(msg.sender).transfer(my_reward);
         emit CashOut(hackathon_id, msg.sender, my_reward);
     }
 
