@@ -159,6 +159,22 @@ contract MunonFactory {
         _;
     }
 
+    modifier hasNotCashedOut(uint256 hackathon_id, address participant_addr) {
+        require(
+            !participant_has_cashed_out[hackathon_id][participant_addr],
+            "Participant has already cashed out"
+        );
+        _;
+    }
+
+    modifier isFinished(uint256 hackathon_id) {
+        require(
+            hackathons[hackathon_id].state == HackathonState.Finished,
+            "Hackathon has not yet finished"
+        );
+        _;
+    }
+
     // Public methods
     function createHackathon(
         string memory _name,
@@ -251,5 +267,55 @@ contract MunonFactory {
                 ] = points[current_participant][current_metric];
             }
         }
+    }
+
+    function cashOut(uint256 hackathon_id)
+        public
+        hasJoined(hackathon_id)
+        hasNotCashedOut(hackathon_id, msg.sender)
+        isFinished(hackathon_id)
+    {
+        uint256 total_points = getHackathonTotalPoints(hackathon_id);
+        uint256 my_points = participant_points[hackathon_id][msg.sender];
+
+        // Calculate reward
+        uint256 pot = hackathons[hackathon_id].pot;
+        uint256 my_reward = (pot * my_points) / total_points;
+
+        payable(msg.sender).transfer(my_reward);
+        participant_has_cashed_out[hackathon_id][msg.sender] = true;
+        emit CashOut(hackathon_id, msg.sender, my_reward);
+    }
+
+    // View methods
+    function getParticipantCount(uint256 hackathon_id)
+        public
+        view
+        returns (uint256 participant_count)
+    {
+        return participant_addresses[hackathon_id].length;
+    }
+
+    function getHackathonTotalPoints(uint256 hackathon_id)
+        public
+        view
+        returns (uint256 total_points)
+    {
+        address[] memory addresses = participant_addresses[hackathon_id];
+        uint256 result = 0;
+        for (uint256 i = 0; i < addresses.length; i++) {
+            for (uint256 j = 0; j < addresses.length; j++) {
+                for (
+                    uint256 k = 0;
+                    k < hackathons[hackathon_id].metrics.length;
+                    k++
+                ) {
+                    result += participant_ratings[hackathon_id][addresses[i]][
+                        addresses[j]
+                    ][k];
+                }
+            }
+        }
+        return result;
     }
 }
