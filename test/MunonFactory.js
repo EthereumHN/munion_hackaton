@@ -142,4 +142,16 @@ describe("Munon Factory tests", function () {
             expect(hackathon[1]).to.equal(2);
         });
     });
+
+    describe("finishHackathon", function () {
+        let HackathonFactory;
+        let hackathonFactory;
+        let owner;
+
+        beforeEach(async function () {
+            [owner] = await ethers.getSigners();
+            HackathonFactory = await ethers.getContractFactory("MunonFactory");
+            hackathonFactory = await HackathonFactory.deploy();
+        });
+    });
 });

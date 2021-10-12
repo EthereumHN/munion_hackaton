@@ -175,6 +175,23 @@ contract MunonFactory {
         _;
     }
 
+    modifier twoMonthFromCreation(uint256 hackathon_id) {
+        require(
+            block.timestamp >= hackathons[hackathon_id].creation_time + 60 days,
+            "time must be greater than 2 months"
+        );
+        _;
+    }
+
+    modifier oneWeekFromReview(uint256 hackathon_id) {
+        require(
+            block.timestamp >=
+                hackathons[hackathon_id].enable_review_time + 7 days,
+            "time must be greater than 1 week"
+        );
+        _;
+    }
+
     // Public methods
     function createHackathon(
         string memory _name,
@@ -231,6 +248,7 @@ contract MunonFactory {
     function finishHackathon(uint256 hackathon_id)
         public
         isHackathonHost(hackathon_id)
+        isNotFinished(hackathon_id)
     {
         hackathons[hackathon_id].state = HackathonState.Finished;
         emit HackathonFinished(hackathon_id);
@@ -297,6 +315,25 @@ contract MunonFactory {
         emit HackathonReviewEnabled(hackathon_id);
     }
 
+    // Force methods
+    function forceFinishHackathon(uint256 hackathon_id)
+        public
+        isRegistrationOpen(hackathon_id)
+        twoMonthFromCreation(hackathon_id)
+    {
+        hackathons[hackathon_id].state = HackathonState.Finished;
+        emit HackathonFinished(hackathon_id);
+    }
+
+    function forceFinishHackathonFromReview(uint256 hackathon_id)
+        public
+        isReviewEnabled(hackathon_id)
+        oneWeekFromReview(hackathon_id)
+    {
+        hackathons[hackathon_id].state = HackathonState.Finished;
+        emit HackathonFinished(hackathon_id);
+    }
+
     // View methods
     function getParticipantCount(uint256 hackathon_id)
         public
@@ -327,5 +364,13 @@ contract MunonFactory {
             }
         }
         return result;
+    }
+
+    fallback() external payable {
+        revert();
+    }
+
+    receive() external payable{
+        revert();
     }
 }
