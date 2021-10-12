@@ -287,6 +287,15 @@ contract MunonFactory {
         emit CashOut(hackathon_id, msg.sender, my_reward);
     }
 
+    function enableHackathonReview(uint256 hackathon_id)
+        public
+        isHackathonHost(hackathon_id)
+    {
+        hackathons[hackathon_id].state = HackathonState.ReviewEnabled;
+        hackathons[hackathon_id].enable_review_time = block.timestamp;
+        emit HackathonReviewEnabled(hackathon_id);
+    }
+
     // View methods
     function getParticipantCount(uint256 hackathon_id)
         public
