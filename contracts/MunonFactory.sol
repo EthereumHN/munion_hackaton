@@ -290,6 +290,7 @@ contract MunonFactory {
     function enableHackathonReview(uint256 hackathon_id)
         public
         isHackathonHost(hackathon_id)
+        isNotFinished(hackathon_id)
     {
         hackathons[hackathon_id].state = HackathonState.ReviewEnabled;
         hackathons[hackathon_id].enable_review_time = block.timestamp;
